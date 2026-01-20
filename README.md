@@ -37,24 +37,6 @@ O sistema é composto por **microserviços independentes**, com comunicação as
 
 ---
 
-## 📁 Estrutura do Projeto
-projeto-gestao-financeira/
-│
-├── docker/
-│ └── docker-compose.yml
-│
-├── user-service/
-│
-├── transaction-api/
-│
-├── transaction-processor/
-│
-├── docs/
-│
-└── README.md
-
----
-
 ## 🐳 Infraestrutura (Docker)
 
 A infraestrutura do projeto é executada via **Docker Compose**, incluindo:
