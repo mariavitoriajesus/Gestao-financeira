@@ -1,6 +1,5 @@
 package com.beca.financial.transaction_api.service;
 
-
 import com.beca.financial.transaction_api.domain.Transaction;
 import com.beca.financial.transaction_api.domain.enums.TransactionStatus;
 import com.beca.financial.transaction_api.dto.CreateTransactionRequest;
@@ -27,11 +26,17 @@ public class TransactionService {
 
     @Transactional
     public UUID create(CreateTransactionRequest request) {
+        // Observação: validação forte deve estar no Controller com @Valid.
+        // Aqui a gente só faz “sanitização”/normalização.
+
         Transaction tx = new Transaction();
-        tx.setId(request.userId());
+        tx.setUserId(request.userId());
         tx.setType(request.type());
         tx.setAmount(request.amount());
-        tx.setCurrency(request.currency().toUpperCase());
+
+        String currency = request.currency() == null ? null : request.currency().trim().toUpperCase();
+        tx.setCurrency(currency);
+
         tx.setDescription(request.description());
         tx.setStatus(TransactionStatus.PENDING);
         tx.setCreateAt(LocalDateTime.now());
@@ -40,6 +45,7 @@ public class TransactionService {
 
         TransactionRequestedEvent event = new TransactionRequestedEvent(
                 saved.getId(),
+                saved.getUserId(),
                 saved.getType(),
                 saved.getAmount(),
                 saved.getCurrency(),
@@ -54,10 +60,16 @@ public class TransactionService {
 
     @Transactional(readOnly = true)
     public TransactionResponse findById(UUID id) {
-        Transaction tx = transactionRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Transaction not found"));
+        Transaction tx = transactionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + id));
 
+        return toResponse(tx);
+    }
+
+    private TransactionResponse toResponse(Transaction tx) {
         return new TransactionResponse(
                 tx.getId(),
+                tx.getUserId(),
                 tx.getType(),
                 tx.getAmount(),
                 tx.getCurrency(),
@@ -65,5 +77,13 @@ public class TransactionService {
                 tx.getStatus(),
                 tx.getCreateAt()
         );
+    }
+
+    @Transactional
+    public void updateStatus(UUID id, TransactionStatus status) {
+        Transaction tx = transactionRepository.findById(id).orElseThrow(
+                () -> new IllegalArgumentException("Transaction not found: " + id));
+        tx.setStatus(status);
+        transactionRepository.save(tx);
     }
 }

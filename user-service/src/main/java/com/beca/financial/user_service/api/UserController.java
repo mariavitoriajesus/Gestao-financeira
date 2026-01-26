@@ -2,6 +2,7 @@ package com.beca.financial.user_service.api;
 
 
 import com.beca.financial.user_service.api.dto.CreateUserRequest;
+import com.beca.financial.user_service.api.dto.ImportUserResponse;
 import com.beca.financial.user_service.api.dto.UpdateUserRequest;
 import com.beca.financial.user_service.api.dto.UserResponse;
 import com.beca.financial.user_service.service.UserService;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.UUID;
 
@@ -48,5 +50,11 @@ public class UserController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable UUID id) {
         userService.inactive(id);
+    }
+
+    @PostMapping("/import")
+    @ResponseStatus(HttpStatus.OK)
+    public ImportUserResponse importUser(@RequestParam("file") MultipartFile file) {
+        return userService.importUser(file);
     }
 }

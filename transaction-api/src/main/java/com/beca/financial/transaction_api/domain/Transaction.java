@@ -16,9 +16,13 @@ import java.util.UUID;
 @Getter
 @Setter
 public class Transaction {
+
     @Id
     @GeneratedValue
     private UUID id;
+
+    @Column(nullable = false)
+    private UUID userId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -94,5 +98,13 @@ public class Transaction {
 
     public void setCreateAt(LocalDateTime createAt) {
         this.createAt = createAt;
+    }
+
+    public UUID getUserId() {
+        return userId;
+    }
+
+    public void setUserId(UUID userId) {
+        this.userId = userId;
     }
 }

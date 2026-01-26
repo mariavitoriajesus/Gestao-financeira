@@ -4,6 +4,7 @@ package com.beca.financial.transaction_api.api;
 import com.beca.financial.transaction_api.dto.CreateTransactionRequest;
 import com.beca.financial.transaction_api.dto.CreateTransactionResponse;
 import com.beca.financial.transaction_api.dto.TransactionResponse;
+import com.beca.financial.transaction_api.dto.UpdateTransactionStatusRequest;
 import com.beca.financial.transaction_api.service.TransactionService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -31,5 +32,11 @@ public class TransactionController {
     @GetMapping("/{id}")
     public TransactionResponse findById(@PathVariable UUID id) {
         return transactionService.findById(id);
+    }
+
+    @PatchMapping("/{id}/status")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateStatus(@PathVariable UUID id, @RequestBody @Valid UpdateTransactionStatusRequest request) {
+        transactionService.updateStatus(id, request.status());
     }
 }

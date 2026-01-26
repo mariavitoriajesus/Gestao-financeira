@@ -1,6 +1,6 @@
-package com.beca.financial.transaction_api.events;
+package com.beca.financial.transaction_processor.events;
 
-import com.beca.financial.transaction_api.domain.enums.TransactionType;
+import com.beca.financial.transaction_processor.enums.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

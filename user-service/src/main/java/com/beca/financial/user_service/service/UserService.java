@@ -2,19 +2,26 @@ package com.beca.financial.user_service.service;
 
 
 import com.beca.financial.user_service.api.dto.CreateUserRequest;
+import com.beca.financial.user_service.api.dto.ImportUserResponse;
 import com.beca.financial.user_service.api.dto.UpdateUserRequest;
 import com.beca.financial.user_service.api.dto.UserResponse;
 import com.beca.financial.user_service.domain.User;
 import com.beca.financial.user_service.domain.enums.StatusUsuario;
 import com.beca.financial.user_service.domain.enums.TipoPessoa;
 import com.beca.financial.user_service.repository.UserRepository;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -118,5 +125,84 @@ public class UserService {
                 u.getCreatedAt()
         );
     }
+
+    public ImportUserResponse importUser(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File not sent or empty.");
+        }
+
+        String filename = file.getOriginalFilename();
+        if (filename == null || !filename.toLowerCase().endsWith(".xlsx")) {
+            throw new IllegalArgumentException("Invalid format. Please submit an .xlsx file.");
+        }
+
+        int totalRows = 0;
+        int imported = 0;
+        List<ImportUserResponse.RowError> errors = new ArrayList<>();
+
+        try (InputStream is = file.getInputStream();
+             Workbook workbook = new XSSFWorkbook(is)){
+            Sheet sheet = workbook.getSheet(String.valueOf(0));
+
+            for (int r = 1; r < sheet.getLastRowNum(); r++) {
+                Row row = sheet.getRow(r);
+                if (row == null) continue;
+
+                totalRows++;
+
+                try {
+                    String name = getCellAsString(row.getCell(0));
+                    String email = getCellAsString(row.getCell(1));
+                    String password = getCellAsString(row.getCell(2));
+                    String cpfCnpj = getCellAsString(row.getCell(3));
+                    String tipoPessoaStr = getCellAsString(row.getCell(4));
+                    String phone = getCellAsString(row.getCell(5));
+                    String endereco = getCellAsString(row.getCell(6));
+
+                    TipoPessoa tipoPessoa = (tipoPessoaStr == null || tipoPessoaStr.isBlank()) ? TipoPessoa.FISICA :
+                            TipoPessoa.valueOf(tipoPessoaStr.trim().toUpperCase());
+
+                    CreateUserRequest req = new CreateUserRequest(
+                            name,
+                            email,
+                            password,
+                            cpfCnpj,
+                            tipoPessoa,
+                            phone,
+                            endereco
+                    );
+
+                    this.create(req);
+                    imported++;
+                } catch (Exception e) {
+                    errors.add(new ImportUserResponse.RowError(r + 1, e.getMessage() == null ? "Error importing line" : e.getMessage()));
+                }
+            }
+
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to read Excel: " + e.getMessage(), e);
+        }
+
+        return new ImportUserResponse(
+                totalRows,
+                imported,
+                totalRows - imported,
+                errors
+        );
+    }
+
+    private String getCellAsString(Cell cell) {
+        if (cell == null) return null;
+        if (cell.getCellType() == CellType.STRING) return cell.getStringCellValue().trim();
+        if (cell.getCellType() == CellType.NUMERIC) {
+            double v = cell.getNumericCellValue();
+            long lv = (long) v;
+            return String.valueOf(lv);
+        }
+        if (cell.getCellType() == CellType.BOOLEAN) return String.valueOf(cell.getBooleanCellValue());
+        if (cell.getCellType() == CellType.FORMULA) return cell.getCellFormula();
+        return null;
+    }
+
 
 }
