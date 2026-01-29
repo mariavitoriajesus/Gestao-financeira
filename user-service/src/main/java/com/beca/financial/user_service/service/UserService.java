@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -90,7 +91,7 @@ public class UserService {
         }
 
         if (request.nome() != null) user.setName(request.nome());
-        if (request.password() != null) user.setPassword(request.password()); // hash depois
+        if (request.password() != null) user.setPassword(request.password());
         if (request.tipoPessoa() != null) user.setTipoPessoa(request.tipoPessoa());
         if (request.phone() != null) user.setPhone(request.phone());
         if (request.endereco() != null) user.setEndereco(request.endereco());
@@ -205,4 +206,45 @@ public class UserService {
     }
 
 
+    public byte[] generateImportTemplate() {
+        try (Workbook workbook = new XSSFWorkbook();
+             ByteArrayOutputStream out = new ByteArrayOutputStream()
+        ){
+            Sheet sheet = workbook.createSheet("users");
+
+            Row header = sheet.createRow(0);
+            List<String> columns = List.of(
+                    "name",
+                    "email",
+                    "password",
+                    "cpfCnpj",
+                    "tipoPessoa",
+                    "phone",
+                    "endereco"
+            );
+
+            for (int i = 0; i < columns.size(); i++) {
+                Cell cell = header.createCell(i);
+               cell.setCellValue(columns.get(i));
+            }
+
+            Row example = sheet.createRow(1);
+            example.createCell(0).setCellValue("João Silva");
+            example.createCell(1).setCellValue("joao.silva@email.com");
+            example.createCell(2).setCellValue("Senha@123");
+            example.createCell(3).setCellValue("12345678900");
+            example.createCell(4).setCellValue("FISICA");
+            example.createCell(5).setCellValue("11999999999");
+            example.createCell(6).setCellValue("Rua das Flores, 123");
+
+            for (int i = 0; i < columns.size(); i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(out);
+            return out.toByteArray();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Erro ao gerar planilha modelo", e);
+        }
+    }
 }

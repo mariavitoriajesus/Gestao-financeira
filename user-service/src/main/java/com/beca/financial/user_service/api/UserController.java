@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -56,5 +57,15 @@ public class UserController {
     @ResponseStatus(HttpStatus.OK)
     public ImportUserResponse importUser(@RequestParam("file") MultipartFile file) {
         return userService.importUser(file);
+    }
+
+    @GetMapping("/impoort/template")
+    public ResponseEntity<byte[]> downloadImportTemplate() {
+        byte [] file = userService.generateImportTemplate();
+
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=users-import-template.xlsx")
+                .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .body(file);
     }
 }

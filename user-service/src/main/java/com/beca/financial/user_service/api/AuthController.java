@@ -5,7 +5,6 @@ import com.beca.financial.user_service.JwtService.JwtService;
 import com.beca.financial.user_service.api.dto.LoginRequest;
 import com.beca.financial.user_service.api.dto.LoginResponse;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;

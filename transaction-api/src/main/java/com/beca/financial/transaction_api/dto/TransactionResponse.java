@@ -15,6 +15,7 @@ public record TransactionResponse(
         String currency,
         String description,
         TransactionStatus status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        ExchangeRateResponse exchange
 ) {
 }
