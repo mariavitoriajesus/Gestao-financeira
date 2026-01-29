@@ -1,5 +1,6 @@
 package com.beca.financial.transaction_api.messaging;
 
+import com.beca.financial.transaction_api.dto.BrasilApiQuoteResponse;
 import com.beca.financial.transaction_api.dto.ExchangeRateResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,24 +42,15 @@ public class BrasilApiExchangeClient {
             try {
                 log.info("Consultando BrasilAPI: moeda={} data={}", cur, attemptDate);
 
-                ExchangeRateResponse resp = restClient.get()
+                BrasilApiQuoteResponse resp = restClient.get()
                         .uri(BASE_URL + "/cotacao/{currency}/{date}", cur, attemptDate.toString())
-                        .retrieve()
-                        .body(ExchangeRateResponse.class);
-
-                if (resp != null && resp.cotac() != null && !resp.cotacoes().isEmpty()) {
-
-                    BigDecimal rate = resp.cotacoes().stream()
-                            .filter(c -> "FECHAMENTO PTAX".equalsIgnoreCase(c.tipoBoletim()))
-                            .findFirst()
-                            .orElse(resp.cotacoes().get(resp.cotacoes().size() - 1))
-                            .cotacaoVenda();
+                        .retrieve().body(BrasilApiQuoteResponse.class);
+                BigDecimal rate = extractSellRate(resp);
 
                     if (rate != null) {
                         log.info("Cotação encontrada: moeda={} data={} venda={}", cur, attemptDate, rate);
                         return rate;
                     }
-                }
 
                 log.warn("Resposta sem cotacaoVenda (moeda={} data={}). Tentando dia anterior.", cur, attemptDate);
                 attemptDate = previousBusinessDay(attemptDate);
@@ -88,6 +80,17 @@ public class BrasilApiExchangeClient {
         }
 
         throw new IllegalArgumentException("Quote not found for " + cur);
+    }
+
+    private BigDecimal extractSellRate(BrasilApiQuoteResponse resp) {
+        if (resp == null || resp.cotacao() == null || resp.cotacao().isEmpty()) {
+            return null;
+        }
+
+        var chosen = resp.cotacao().stream()
+                .filter(c -> c.tipoBoletim() != null && "FECHAMENTO PTAX".equalsIgnoreCase(c.tipoBoletim()))
+                .findFirst().orElse(resp.cotacao().get(resp.cotacao().size() -1));
+        return chosen != null ? chosen.cotacaoVenda() : null;
     }
 
     private LocalDate previousBusinessDay(LocalDate d) {

@@ -6,7 +6,6 @@ import com.beca.financial.transaction_api.domain.enums.TransactionStatus;
 import com.beca.financial.transaction_api.domain.enums.TransactionType;
 import com.beca.financial.transaction_api.dto.CreateTransactionRequest;
 import com.beca.financial.transaction_api.dto.ExchangeRateResponse;
-import com.beca.financial.transaction_api.builder.ExchangeRateResponseBuilder;
 import com.beca.financial.transaction_api.dto.TransactionResponse;
 import com.beca.financial.transaction_api.events.TransactionRequestedEvent;
 import com.beca.financial.transaction_api.messaging.BrasilApiExchangeClient;
@@ -18,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -39,12 +40,8 @@ public class TransactionService {
     @Transactional
     public UUID create(CreateTransactionRequest request) {
 
-        if (request.type() == null) {
-            throw new IllegalArgumentException("type is required");
-        }
-        if (request.userId() == null) {
-            throw new IllegalArgumentException("userId is required.");
-        }
+        if (request.type() == null) throw new IllegalArgumentException("type is required");
+        if (request.userId() == null) throw new IllegalArgumentException("userId is required.");
         if (request.amount() == null || request.amount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("The amount must be greater than 0.");
         }
@@ -53,17 +50,20 @@ public class TransactionService {
         tx.setUserId(request.userId());
         tx.setType(request.type());
         tx.setStatus(TransactionStatus.PENDING);
-        tx.setAmount(request.amount());
+        tx.setCreateAt(LocalDateTime.now()); // ✅ garante que não fica null
 
         if (request.type() == TransactionType.CAMBIO) {
             validateExchangeRequest(request);
 
             String currencyFrom = request.currencyFrom().trim().toUpperCase();
             String currencyTo = request.currencyTo().trim().toUpperCase();
-            LocalDate quoteDate = (request.quoteDate() != null) ? request.quoteDate() : LocalDate.now();
+
+            LocalDate quoteDate = (request.quoteDate() != null)
+                    ? lastBusinessDay(request.quoteDate())
+                    : lastBusinessDay(LocalDate.now().minusDays(1));
 
             BigDecimal rate = brasilApiExchangeClient.getExchangeRate(currencyFrom, quoteDate);
-            if (rate == null || rate.compareTo(BigDecimal.ZERO) <= 0){
+            if (rate == null || rate.compareTo(BigDecimal.ZERO) <= 0) {
                 throw new IllegalArgumentException("Invalid exchange rate returned by the API.");
             }
 
@@ -72,8 +72,9 @@ public class TransactionService {
 
             tx.setAmount(amountFrom);
             tx.setCurrency(currencyTo);
-            tx.setDescription(request.description() != null && !request.description().isBlank() ?
-                    request.description() : ("Exchange " + currencyFrom + " -> " + currencyTo));
+            tx.setDescription(request.description() != null && !request.description().isBlank()
+                    ? request.description()
+                    : ("Exchange " + currencyFrom + " -> " + currencyTo));
 
             Transaction savedTx = transactionRepository.save(tx);
 
@@ -130,13 +131,22 @@ public class TransactionService {
     public TransactionResponse findById(UUID id) {
         Transaction tx = transactionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + id));
+
         ExchangeRateResponse exchange = null;
 
         if (tx.getType() == TransactionType.CAMBIO) {
-            var ex = exchangeTransactionRepository.findByTransactionId(tx.getId()).orElse(null);
+            ExchangeTransaction ex = exchangeTransactionRepository.findByTransactionId(tx.getId()).orElse(null);
 
             if (ex != null) {
-                exchange = new ExchangeRateResponseBuilder().setTransactionId(ex.getTransactionId()).getMoeda(ex.getCurrencyFrom()).setData(ex.getCurrencyTo()).setCotacaoCompra(ex.getRate()).setCotacaoVenda(ex.getAmountFrom()).setAmountTo(ex.getAmountTo()).setQuoteDate(ex.getQuoteDate()).setSource(ex.getSource()).createExchangeRateResponse();
+                exchange = new ExchangeRateResponse(
+                        ex.getCurrencyFrom(),
+                        ex.getCurrencyTo(),
+                        ex.getRate(),
+                        ex.getAmountFrom(),
+                        ex.getAmountTo(),
+                        ex.getQuoteDate(),
+                        ex.getSource()
+                );
             }
         }
 
@@ -164,15 +174,21 @@ public class TransactionService {
             throw new IllegalArgumentException("currencyFrom and currencyTo must be different.");
         }
         if (request.currencyFrom().trim().length() != 3 || request.currencyTo().trim().length() != 3) {
-            throw new IllegalArgumentException("currency From/currency To must have 3 characters (e.g. USD, BRL)");
+            throw new IllegalArgumentException("currencyFrom/currencyTo must have 3 characters (e.g. USD, BRL)");
         }
     }
 
     @Transactional
     public void updateStatus(UUID id, TransactionStatus status) {
-        Transaction tx = transactionRepository.findById(id).orElseThrow(
-                () -> new IllegalArgumentException("Transaction not found: " + id));
+        Transaction tx = transactionRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Transaction not found: " + id));
         tx.setStatus(status);
         transactionRepository.save(tx);
+    }
+
+    private LocalDate lastBusinessDay(LocalDate d) {
+        if (d.getDayOfWeek() == DayOfWeek.SATURDAY) return d.minusDays(1);
+        if (d.getDayOfWeek() == DayOfWeek.SUNDAY) return d.minusDays(2);
+        return d;
     }
 }

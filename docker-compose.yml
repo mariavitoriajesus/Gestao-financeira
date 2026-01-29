@@ -1,0 +1,103 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: pf-postgres
+    environment:
+      POSTGRES_USER: beca
+      POSTGRES_PASSWORD: beca
+      POSTGRES_DB: financial_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - pf-net
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: pf-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - pf-net
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: pf-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - pf-net
+
+  user-service:
+    build: ./user-service
+    container_name: pf-user-service
+    depends_on:
+      - postgres
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/financial_db
+      SPRING_DATASOURCE_USERNAME: beca
+      SPRING_DATASOURCE_PASSWORD: beca
+    ports:
+      - "8081:8081"
+    networks:
+      - pf-net
+
+  transaction-api:
+    build: ./transaction-api
+    container_name: pf-transaction-api
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/financial_db
+      SPRING_DATASOURCE_USERNAME: beca
+      SPRING_DATASOURCE_PASSWORD: beca
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8082:8082"
+    networks:
+      - pf-net
+
+  transaction-processor:
+    build: ./transaction-processor
+    container_name: pf-transaction-processor
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/financial_db
+      SPRING_DATASOURCE_USERNAME: beca
+      SPRING_DATASOURCE_PASSWORD: beca
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    ports:
+      - "8083:8083"
+    networks:
+      - pf-net
+
+volumes:
+  pgdata:
+
+networks:
+  pf-net:
+    driver: bridge

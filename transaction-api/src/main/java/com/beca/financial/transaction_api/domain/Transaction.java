@@ -4,8 +4,6 @@ package com.beca.financial.transaction_api.domain;
 import com.beca.financial.transaction_api.domain.enums.TransactionStatus;
 import com.beca.financial.transaction_api.domain.enums.TransactionType;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -13,8 +11,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
-@Getter
-@Setter
 public class Transaction {
 
     @Id
@@ -41,7 +37,7 @@ public class Transaction {
     @Column(nullable = false)
     private TransactionStatus status;
 
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private LocalDateTime createAt;
 
     public UUID getId() {
