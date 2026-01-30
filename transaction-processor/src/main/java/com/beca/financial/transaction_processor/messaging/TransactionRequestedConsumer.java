@@ -17,7 +17,7 @@ public class TransactionRequestedConsumer {
 
     @KafkaListener(topics = "transaction.requested", groupId = "transaction-processor")
     public void onMessage(TransactionRequestedEvent event) {
-        String status = event.amount().doubleValue() <= 1000.0 ? "APRPROVED" : "FAILED";
+        String status = event.amount().doubleValue() <= 1000.0 ? "APPROVED" : "FAILED";
 
         try {
             transactionApiCliente.patch()
@@ -25,7 +25,7 @@ public class TransactionRequestedConsumer {
                     .body(Map.of("status", status))
                     .retrieve().toBodilessEntity();
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to update transaction status for id= " + event.transactionId(), e);
         }
 
     }

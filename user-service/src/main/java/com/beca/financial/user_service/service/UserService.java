@@ -8,6 +8,7 @@ import com.beca.financial.user_service.api.dto.UserResponse;
 import com.beca.financial.user_service.domain.User;
 import com.beca.financial.user_service.domain.enums.StatusUsuario;
 import com.beca.financial.user_service.domain.enums.TipoPessoa;
+import com.beca.financial.user_service.domain.enums.UserRole;
 import com.beca.financial.user_service.repository.UserRepository;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -58,6 +59,8 @@ public class UserService {
 
         User salved = userRepository.save(user);
 
+        user.setRole(UserRole.USER);
+
         return toResponse(salved);
     }
 
@@ -103,7 +106,7 @@ public class UserService {
     @Transactional
     public void inactive(UUID id){
         User user = getOrThrow(id);
-        user.getStatus(StatusUsuario.INATIVO);
+        user.getStatus();
         userRepository.save(user);
     }
 
@@ -122,7 +125,7 @@ public class UserService {
                 u.getTipoPessoa(),
                 u.getPhone(),
                 u.getEndereco(),
-                u.getStatus(StatusUsuario.ATIVO),
+                u.getStatus(),
                 u.getCreatedAt()
         );
     }

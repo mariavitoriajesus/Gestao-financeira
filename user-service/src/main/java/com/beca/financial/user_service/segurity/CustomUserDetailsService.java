@@ -25,10 +25,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         com.beca.financial.user_service.domain.User user = userRepository.findByEmail(email).orElseThrow(
                 () -> new UsernameNotFoundException("User not found")
         );
-        return new org.springframework.security.core.userdetails.User(
-                user.getEmail(),
-                user.getPassword(),
-                List.of(new SimpleGrantedAuthority("ROLE_USER"))
-        );
+        return org.springframework.security.core.userdetails.User
+                .withUsername(user.getEmail())
+                .password(user.getPassword())
+                .authorities("ROLE_" + user.getRole().name())
+                .build();
     }
 }

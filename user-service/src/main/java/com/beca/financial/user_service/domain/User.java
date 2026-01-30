@@ -2,9 +2,9 @@ package com.beca.financial.user_service.domain;
 
 import com.beca.financial.user_service.domain.enums.StatusUsuario;
 import com.beca.financial.user_service.domain.enums.TipoPessoa;
+import com.beca.financial.user_service.domain.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
-import org.jspecify.annotations.Nullable;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -47,6 +47,9 @@ public class User {
 
     private String endereco;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private UserRole role = UserRole.USER;
 
     @PrePersist
     public void prePersiste() {
@@ -110,7 +113,7 @@ public class User {
         this.createdAt = createdAt;
     }
 
-    public StatusUsuario getStatus(StatusUsuario inativo) {
+    public StatusUsuario getStatus() {
         return status;
     }
 
@@ -119,6 +122,7 @@ public class User {
     }
 
     public void setEndereco(String endereco) {
+        this.endereco = endereco;
     }
 
     public String getEndereco() {
@@ -127,5 +131,13 @@ public class User {
 
     public String getPassword() {
         return password;
+    }
+
+    public UserRole getRole() {
+        return role;
+    }
+
+    public void setRole(UserRole role) {
+        this.role = role;
     }
 }

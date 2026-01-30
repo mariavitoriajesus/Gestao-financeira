@@ -38,7 +38,9 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/users").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/users/import").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/users/import/template").permitAll()
+                        .requestMatchers("/mock/**").permitAll()
                         .anyRequest().authenticated()).addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

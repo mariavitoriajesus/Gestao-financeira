@@ -1,7 +1,6 @@
 package com.beca.financial.transaction_api.messaging;
 
 import com.beca.financial.transaction_api.dto.BrasilApiQuoteResponse;
-import com.beca.financial.transaction_api.dto.ExchangeRateResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -34,7 +33,6 @@ public class BrasilApiExchangeClient {
         }
 
         String cur = currency.trim().toUpperCase();
-
         LocalDate attemptDate = (quoteDate != null) ? quoteDate : LocalDate.now().minusDays(1);
         attemptDate = lastBusinessDay(attemptDate);
 
@@ -44,15 +42,22 @@ public class BrasilApiExchangeClient {
 
                 BrasilApiQuoteResponse resp = restClient.get()
                         .uri(BASE_URL + "/cotacao/{currency}/{date}", cur, attemptDate.toString())
-                        .retrieve().body(BrasilApiQuoteResponse.class);
-                BigDecimal rate = extractSellRate(resp);
+                        .retrieve()
+                        .body(BrasilApiQuoteResponse.class);
 
-                    if (rate != null) {
-                        log.info("Cotação encontrada: moeda={} data={} venda={}", cur, attemptDate, rate);
+                if (resp != null && resp.cotacoes() != null && !resp.cotacoes().isEmpty()) {
+                    BigDecimal rate = resp.cotacoes().stream()
+                            .filter(c -> c.tipoBoletim() != null && c.tipoBoletim().equalsIgnoreCase("FECHAMENTO PTAX"))
+                            .findFirst()
+                            .orElse(resp.cotacoes().get(resp.cotacoes().size() - 1))
+                            .cotacaoVenda();
+
+                    if (rate != null && rate.compareTo(BigDecimal.ZERO) > 0) {
                         return rate;
                     }
+                }
 
-                log.warn("Resposta sem cotacaoVenda (moeda={} data={}). Tentando dia anterior.", cur, attemptDate);
+                log.warn("Sem cotacaoVenda (moeda={} data={}). Tentando dia anterior.", cur, attemptDate);
                 attemptDate = previousBusinessDay(attemptDate);
 
             } catch (HttpClientErrorException e) {
@@ -65,32 +70,18 @@ public class BrasilApiExchangeClient {
                     attemptDate = previousBusinessDay(attemptDate);
                     continue;
                 }
-
                 if (status.is4xxClientError()) {
                     attemptDate = previousBusinessDay(attemptDate);
                     continue;
                 }
-
                 throw new IllegalStateException("BrasilAPI error: " + status, e);
 
             } catch (ResourceAccessException e) {
-                log.error("Falha de conexão ao consultar BrasilAPI (moeda={} data={}): {}", cur, attemptDate, e.getMessage());
                 throw new IllegalStateException("Connection failed when querying BrasilAPI.", e);
             }
         }
 
         throw new IllegalArgumentException("Quote not found for " + cur);
-    }
-
-    private BigDecimal extractSellRate(BrasilApiQuoteResponse resp) {
-        if (resp == null || resp.cotacao() == null || resp.cotacao().isEmpty()) {
-            return null;
-        }
-
-        var chosen = resp.cotacao().stream()
-                .filter(c -> c.tipoBoletim() != null && "FECHAMENTO PTAX".equalsIgnoreCase(c.tipoBoletim()))
-                .findFirst().orElse(resp.cotacao().get(resp.cotacao().size() -1));
-        return chosen != null ? chosen.cotacaoVenda() : null;
     }
 
     private LocalDate previousBusinessDay(LocalDate d) {
